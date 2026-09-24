@@ -62,13 +62,13 @@ function toggleEmployee(id) {
   renderEmployees();
 }
 
-let scene, camera, renderer, officeGroup, animatedPeople = [], orbit = { x: 0.62, y: 0.9, down: false, px: 0, py: 0 };
+let scene, camera, renderer, officeGroup, animatedPeople = [], orbit = { x: 0, y: 0.9, down: false, px: 0, py: 0 };
 function initScene() {
   const mount = document.querySelector('#scene');
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#dfece8');
-  camera = new THREE.PerspectiveCamera(34, mount.clientWidth / mount.clientHeight, 0.1, 100);
-  camera.position.set(14, 13.5, 17);
+  camera = new THREE.PerspectiveCamera(40, mount.clientWidth / mount.clientHeight, 0.1, 140);
+  camera.position.set(0, 13, 31);
   camera.lookAt(0, 0, 0);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -177,13 +177,14 @@ function renderScene() {
   if (!officeGroup) return;
   officeGroup.clear();
   animatedPeople = [];
-  const columns = 3; const spaces = employees.length;
+  const spaces = employees.length;
   employees.forEach((employee, index) => {
-    const x = (index % columns) * 5.35 - 5.35; const z = Math.floor(index / columns) * 4.15 - 2.1; const space = makeRoom(x, z, employee.name, employee.active); officeGroup.add(space);
+    const x = index * 5.35 - ((spaces - 1) * 5.35) / 2; const z = 0; const space = makeRoom(x, z, employee.name, employee.active); officeGroup.add(space);
     if (employee.active) space.add(makePerson(employee, 0, -0.25));
   });
-  const totalWidth = columns * 5.35; const totalDepth = Math.ceil(spaces / columns) * 4.15; const base = new THREE.Mesh(new THREE.BoxGeometry(totalWidth, 0.08, totalDepth), new THREE.MeshStandardMaterial({ color: '#b7cbc7', roughness: 1 })); base.position.set(0, -0.05, 0); base.receiveShadow = true; officeGroup.add(base);
-  const grid = new THREE.GridHelper(Math.max(totalWidth, totalDepth), 18, '#a8c2be', '#d6e4e0'); grid.position.y = 0.01; officeGroup.add(grid);
+  const totalWidth = spaces * 5.35; const totalDepth = 4.15; const base = new THREE.Mesh(new THREE.BoxGeometry(totalWidth, 0.08, totalDepth), new THREE.MeshStandardMaterial({ color: '#b7cbc7', roughness: 1 })); base.position.set(0, -0.05, 0); base.receiveShadow = true; officeGroup.add(base);
+  const corridor = new THREE.Mesh(new THREE.BoxGeometry(totalWidth - .4, .035, .9), new THREE.MeshStandardMaterial({ color: '#e3cda9', roughness: .88 })); corridor.position.set(0, .015, 1.6); corridor.receiveShadow = true; officeGroup.add(corridor);
+  const hallRunner = new THREE.Mesh(new THREE.BoxGeometry(totalWidth - .7, .012, .24), new THREE.MeshStandardMaterial({ color: '#86b8aa', roughness: .92 })); hallRunner.position.set(0, .04, 1.6); officeGroup.add(hallRunner);
 }
 
 function animate(time = 0) { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; animatedPeople.forEach(person => { const wave = Math.sin(time * .0022 + person.userData.phase); person.position.y = .18 + wave * .025; person.rotation.z = wave * .012; person.children.filter(child => child.name === 'arm').forEach((arm, index) => { arm.rotation.x = wave * (index ? -.16 : .16); }); const glow = person.children.find(child => child.geometry?.type === 'RingGeometry'); if (glow) glow.material.opacity = .26 + (wave + 1) * .08; }); renderer.render(scene, camera); }
