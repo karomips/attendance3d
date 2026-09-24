@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import './style.css';
 
 const employees = [
-  { id: 1, name: 'Maya Chen', role: 'Product design', initials: 'MC', color: '#ff9d5c', room: 'Studio 01', active: true, since: '08:42' },
-  { id: 2, name: 'Jon Bell', role: 'Engineering', initials: 'JB', color: '#62d6c8', room: 'Studio 01', active: true, since: '08:57' },
-  { id: 3, name: 'Ari Santos', role: 'Operations', initials: 'AS', color: '#c59bff', room: 'Studio 02', active: true, since: '09:11' },
-  { id: 4, name: 'Leila Okafor', role: 'Marketing', initials: 'LO', color: '#f4d35e', room: 'Studio 02', active: false, since: '--:--' },
-  { id: 5, name: 'Noah Williams', role: 'Engineering', initials: 'NW', color: '#78a8ff', room: 'Studio 03', active: false, since: '--:--' },
-  { id: 6, name: 'Priya Kapoor', role: 'Finance', initials: 'PK', color: '#ff769d', room: 'Studio 03', active: true, since: '09:04' },
-  { id: 7, name: 'Eli Turner', role: 'Customer success', initials: 'ET', color: '#70db7c', room: 'Studio 04', active: false, since: '--:--' },
+  { id: 1, name: 'Maya Chen', role: 'Product design', activity: 'Sketching flows', initials: 'MC', color: '#ff9d5c', room: 'Studio 01', active: true, since: '08:42' },
+  { id: 2, name: 'Jon Bell', role: 'Engineering', activity: 'Building release', initials: 'JB', color: '#62d6c8', room: 'Studio 01', active: true, since: '08:57' },
+  { id: 3, name: 'Ari Santos', role: 'Operations', activity: 'Team stand-up', initials: 'AS', color: '#c59bff', room: 'Studio 02', active: true, since: '09:11' },
+  { id: 4, name: 'Leila Okafor', role: 'Marketing', activity: 'Writing campaign', initials: 'LO', color: '#f4d35e', room: 'Studio 02', active: false, since: '--:--' },
+  { id: 5, name: 'Noah Williams', role: 'Engineering', activity: 'Code review', initials: 'NW', color: '#78a8ff', room: 'Studio 03', active: false, since: '--:--' },
+  { id: 6, name: 'Priya Kapoor', role: 'Finance', activity: 'Reviewing reports', initials: 'PK', color: '#ff769d', room: 'Studio 03', active: true, since: '09:04' },
+  { id: 7, name: 'Eli Turner', role: 'Customer success', activity: 'Client call', initials: 'ET', color: '#70db7c', room: 'Studio 04', active: false, since: '--:--' },
 ];
 
 const app = document.querySelector('#app');
@@ -62,7 +62,7 @@ function toggleEmployee(id) {
   renderEmployees();
 }
 
-let scene, camera, renderer, officeGroup, orbit = { x: 0.62, y: 0.9, down: false, px: 0, py: 0 };
+let scene, camera, renderer, officeGroup, animatedPeople = [], orbit = { x: 0.62, y: 0.9, down: false, px: 0, py: 0 };
 function initScene() {
   const mount = document.querySelector('#scene');
   scene = new THREE.Scene();
@@ -105,17 +105,36 @@ function makeLabel(text, color) {
   const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 80; const ctx = canvas.getContext('2d'); ctx.font = 'bold 30px Arial'; ctx.fillStyle = color; ctx.fillText(text.toUpperCase(), 10, 48); const texture = new THREE.CanvasTexture(canvas); const material = new THREE.SpriteMaterial({ map: texture, transparent: true }); const sprite = new THREE.Sprite(material); sprite.scale.set(2.5, 0.4, 1); return sprite;
 }
 
+function makePersonLabel(employee) {
+  const canvas = document.createElement('canvas'); canvas.width = 720; canvas.height = 170;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(11, 24, 29, .92)'; ctx.roundRect(8, 8, 704, 154, 18); ctx.fill();
+  ctx.strokeStyle = employee.color; ctx.globalAlpha = .75; ctx.lineWidth = 3; ctx.roundRect(8, 8, 704, 154, 18); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#f1f7f4'; ctx.font = '700 32px Manrope, Arial'; ctx.fillText(employee.name, 30, 51);
+  ctx.fillStyle = employee.color; ctx.font = '600 23px Manrope, Arial'; ctx.fillText(employee.activity, 30, 87);
+  ctx.fillStyle = '#a8b9b6'; ctx.font = '500 19px DM Mono, monospace'; ctx.fillText(`IN ${employee.since}  /  ${employee.role}`, 30, 126);
+  const texture = new THREE.CanvasTexture(canvas); texture.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false })); sprite.scale.set(3.15, .74, 1); sprite.renderOrder = 5; return sprite;
+}
+
 function makePerson(employee, x, z) {
-  const group = new THREE.Group(); group.position.set(x, 0.18, z); const material = new THREE.MeshStandardMaterial({ color: employee.color, roughness: 0.55 }); const skin = new THREE.MeshStandardMaterial({ color: '#e7b38e', roughness: 0.7 });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.48, 4, 8), material); body.position.y = 0.78; body.castShadow = true; group.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), skin); head.position.y = 1.42; head.castShadow = true; group.add(head);
-  const feet = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.22), new THREE.MeshStandardMaterial({ color: '#172129' })); feet.position.set(0, 0.22, 0.03); feet.castShadow = true; group.add(feet);
-  const tag = makeLabel(employee.initials, '#ffffff'); tag.position.y = 1.86; tag.scale.setScalar(0.36); group.add(tag); return group;
+  const group = new THREE.Group(); group.position.set(x, 0.18, z); group.userData.phase = Math.random() * Math.PI * 2;
+  const material = new THREE.MeshStandardMaterial({ color: employee.color, roughness: 0.48 }); const skin = new THREE.MeshStandardMaterial({ color: '#e7b38e', roughness: 0.7 }); const dark = new THREE.MeshStandardMaterial({ color: '#172129', roughness: .7 });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.23, 0.48, 5, 8), material); torso.position.y = 0.82; torso.castShadow = true; group.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), skin); head.position.y = 1.48; head.castShadow = true; group.add(head);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.245, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55), dark); hair.position.set(0, 1.56, -0.02); hair.castShadow = true; group.add(hair);
+  const armGeometry = new THREE.CapsuleGeometry(.065, .3, 4, 6); [-1, 1].forEach(side => { const arm = new THREE.Mesh(armGeometry, skin); arm.position.set(side * .27, .88, .01); arm.rotation.z = side * -.25; arm.castShadow = true; arm.name = 'arm'; group.add(arm); });
+  const legGeometry = new THREE.CapsuleGeometry(.075, .3, 4, 6); [-1, 1].forEach(side => { const leg = new THREE.Mesh(legGeometry, dark); leg.position.set(side * .1, .34, .02); leg.castShadow = true; group.add(leg); });
+  const feet = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.25), dark); feet.position.set(0, 0.17, 0.05); feet.castShadow = true; group.add(feet);
+  const badge = makePersonLabel(employee); badge.position.y = 2.38; group.add(badge);
+  const glow = new THREE.Mesh(new THREE.RingGeometry(.32, .38, 24), new THREE.MeshBasicMaterial({ color: employee.color, transparent: true, opacity: .38, side: THREE.DoubleSide })); glow.rotation.x = -Math.PI / 2; glow.position.y = .12; group.add(glow);
+  animatedPeople.push(group); return group;
 }
 
 function renderScene() {
   if (!officeGroup) return;
   officeGroup.clear();
+  animatedPeople = [];
   const rooms = [...new Set(employees.map(employee => employee.room))];
   rooms.forEach((roomName, index) => {
     const x = (index % 2) * 5.35 - 2.7; const z = Math.floor(index / 2) * 4.15 - 2.1; const roomEmployees = employees.filter(employee => employee.room === roomName); const room = makeRoom(x, z, roomName, roomEmployees.some(employee => employee.active)); officeGroup.add(room);
@@ -125,7 +144,7 @@ function renderScene() {
   const grid = new THREE.GridHelper(Math.max(totalWidth, totalDepth), 12, '#3c5457', '#24383d'); grid.position.y = 0.01; officeGroup.add(grid);
 }
 
-function animate() { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; renderer.render(scene, camera); }
+function animate(time = 0) { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; animatedPeople.forEach(person => { const wave = Math.sin(time * .0022 + person.userData.phase); person.position.y = .18 + wave * .025; person.rotation.z = wave * .012; person.children.filter(child => child.name === 'arm').forEach((arm, index) => { arm.rotation.x = wave * (index ? -.16 : .16); }); const glow = person.children.find(child => child.geometry?.type === 'RingGeometry'); if (glow) glow.material.opacity = .26 + (wave + 1) * .08; }); renderer.render(scene, camera); }
 
 function updateClock() { document.querySelector('#clock').textContent = new Date().toLocaleTimeString([], { hour12: false }); }
 initScene(); renderEmployees(); updateClock(); setInterval(updateClock, 1000);
