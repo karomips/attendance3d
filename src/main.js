@@ -28,9 +28,9 @@ app.innerHTML = `
         <div class="sidebar-footer"><span class="sync-icon">↻</span><span>Last sync <b>just now</b></span><span class="sync-status"></span></div>
       </aside>
       <section class="workspace">
-        <div class="workspace-head"><div><span class="eyebrow">FLOOR PLAN / HQ LEVEL 04</span><h2>Office presence</h2></div><div class="workspace-tools"><div class="legend"><span><i class="legend-dot present"></i>Present</span><span><i class="legend-dot room"></i>Room</span></div><button class="view-button"><span>◈</span> Isometric <span>⌄</span></button></div></div>
+        <div class="workspace-head"><div><span class="eyebrow">FLOOR PLAN / HQ LEVEL 04</span><h2>Office presence</h2></div><div class="workspace-tools"><div class="legend"><span><i class="legend-dot present"></i>Present</span><span><i class="legend-dot room"></i>Space</span></div><button class="view-button"><span>◈</span> Isometric <span>⌄</span></button></div></div>
         <div class="scene-wrap"><div id="scene"></div><div class="scene-overlay"><span class="scene-tag"><i class="live-dot"></i> AUTO REFRESH 30S</span><span class="scene-help">Drag to orbit · scroll to zoom</span></div><div class="floor-label">LEVEL 04 <span>·</span> NORTH WING</div></div>
-        <div class="bottom-stats"><div><span class="stat-label">ON SITE</span><strong id="onsite-stat">04</strong><small>of 07 employees</small></div><div><span class="stat-label">ROOMS IN USE</span><strong id="rooms-stat">03</strong><small id="room-subtitle">of 04 rooms</small></div><div><span class="stat-label">FIRST ARRIVAL</span><strong>08:42</strong><small>Maya Chen</small></div><div><span class="stat-label">SYNC HEALTH</span><strong class="health">100%</strong><small>All systems normal</small></div></div>
+        <div class="bottom-stats"><div><span class="stat-label">ON SITE</span><strong id="onsite-stat">04</strong><small>of 07 employees</small></div><div><span class="stat-label">SPACES IN USE</span><strong id="rooms-stat">03</strong><small id="room-subtitle">of 07 spaces</small></div><div><span class="stat-label">FIRST ARRIVAL</span><strong>08:42</strong><small>Maya Chen</small></div><div><span class="stat-label">SYNC HEALTH</span><strong class="health">100%</strong><small>All systems normal</small></div></div>
       </section>
     </main>
   </div>
@@ -51,7 +51,7 @@ function renderEmployees() {
   document.querySelector('#active-count').textContent = active;
   document.querySelector('#away-count').textContent = `${employees.length - active} away`;
   document.querySelector('#onsite-stat').textContent = String(active).padStart(2, '0');
-  document.querySelector('#rooms-stat').textContent = String(new Set(employees.filter(employee => employee.active).map(employee => employee.room)).size).padStart(2, '0');
+  document.querySelector('#rooms-stat').textContent = String(active).padStart(2, '0');
   renderScene();
 }
 
