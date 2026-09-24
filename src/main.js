@@ -95,10 +95,39 @@ function makeRoom(x, z, label, occupied) {
   const wallMaterial = new THREE.MeshStandardMaterial({ color: '#53646b', roughness: 0.8 });
   const back = new THREE.Mesh(new THREE.BoxGeometry(4.9, 2.15, 0.16), wallMaterial); back.position.set(0, 1.1, -1.62); group.add(back);
   const side = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.15, 3.4), wallMaterial); side.position.set(-2.37, 1.1, 0); group.add(side);
-  const deskMaterial = new THREE.MeshStandardMaterial({ color: '#b5764d', roughness: 0.65 });
-  [-1.2, 1.2].forEach(xPos => { const desk = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.13, 0.65), deskMaterial); desk.position.set(xPos, 0.82, 0.15); desk.castShadow = true; group.add(desk); });
+  [-1.2, 1.2].forEach(xPos => group.add(makeDesk(xPos, 0.15, xPos < 0 ? '#a96c4a' : '#9b6649')));
+  group.add(makePlant(1.9, -1.2));
+  const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.82, 0.04), new THREE.MeshStandardMaterial({ color: '#293f48', roughness: .4 })); windowFrame.position.set(1.35, 1.28, -1.53); group.add(windowFrame);
+  const windowLight = new THREE.Mesh(new THREE.BoxGeometry(1.12, .59, .045), new THREE.MeshStandardMaterial({ color: '#83bfc3', emissive: '#23464b', emissiveIntensity: .65, roughness: .25 })); windowLight.position.set(1.35, 1.28, -1.5); group.add(windowLight);
+  const art = new THREE.Mesh(new THREE.BoxGeometry(.55, .72, .035), new THREE.MeshStandardMaterial({ color: occupied ? '#d58e62' : '#56777a', roughness: .65 })); art.position.set(-1.3, 1.25, -1.53); group.add(art);
   const roomText = makeLabel(label, occupied ? '#b7f4d7' : '#89989d'); roomText.position.set(-2.12, 2.05, -1.5); roomText.scale.setScalar(0.55); group.add(roomText);
   return group;
+}
+
+function makeDesk(x, z, woodColor) {
+  const desk = new THREE.Group(); desk.position.set(x, 0, z);
+  const wood = new THREE.MeshStandardMaterial({ color: woodColor, roughness: .58 }); const metal = new THREE.MeshStandardMaterial({ color: '#28383d', roughness: .38 });
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.65, .12, .7), wood); top.position.y = .82; top.castShadow = true; desk.add(top);
+  [-.62, .62].forEach(legX => { const leg = new THREE.Mesh(new THREE.BoxGeometry(.08, .72, .08), metal); leg.position.set(legX, .42, 0); leg.castShadow = true; desk.add(leg); });
+  const monitor = new THREE.Mesh(new THREE.BoxGeometry(.62, .38, .06), new THREE.MeshStandardMaterial({ color: '#26353a', emissive: '#1d5653', emissiveIntensity: .55, roughness: .25 })); monitor.position.set(0, 1.1, -.08); monitor.castShadow = true; desk.add(monitor);
+  const monitorStand = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, .2, 8), metal); monitorStand.position.set(0, .9, -.08); desk.add(monitorStand);
+  const keyboard = new THREE.Mesh(new THREE.BoxGeometry(.48, .025, .18), new THREE.MeshStandardMaterial({ color: '#c3b8a0', roughness: .5 })); keyboard.position.set(0, .9, .2); desk.add(keyboard);
+  const lamp = new THREE.Group(); const lampStem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .32, 8), metal); lampStem.position.set(.58, 1.0, .02); lampStem.rotation.z = -.2; lamp.add(lampStem); const lampShade = new THREE.Mesh(new THREE.ConeGeometry(.13, .16, 12, 1, true), new THREE.MeshStandardMaterial({ color: '#e6c879', emissive: '#6d5424', emissiveIntensity: .7, side: THREE.DoubleSide })); lampShade.position.set(.62, 1.16, .02); lamp.add(lampShade); desk.add(lamp);
+  desk.add(makeChair(0, .82)); return desk;
+}
+
+function makeChair(x, z) {
+  const chair = new THREE.Group(); chair.position.set(x, 0, z); const fabric = new THREE.MeshStandardMaterial({ color: '#354d55', roughness: .82 }); const metal = new THREE.MeshStandardMaterial({ color: '#1b282e', roughness: .38 });
+  const back = new THREE.Mesh(new THREE.BoxGeometry(.48, .62, .1), fabric); back.position.set(0, .62, .12); back.castShadow = true; chair.add(back);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(.52, .12, .48), fabric); seat.position.y = .32; seat.castShadow = true; chair.add(seat);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(.035, .05, .28, 8), metal); post.position.y = .16; chair.add(post);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(.26, .26, .035, 8), metal); base.position.y = .02; chair.add(base); return chair;
+}
+
+function makePlant(x, z) {
+  const plant = new THREE.Group(); plant.position.set(x, 0, z); const pot = new THREE.Mesh(new THREE.CylinderGeometry(.19, .15, .25, 12), new THREE.MeshStandardMaterial({ color: '#c27757', roughness: .7 })); pot.position.y = .22; pot.castShadow = true; plant.add(pot);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .55, 6), new THREE.MeshStandardMaterial({ color: '#47775c', roughness: .8 })); stem.position.y = .55; plant.add(stem);
+  const leafMaterial = new THREE.MeshStandardMaterial({ color: '#63a978', roughness: .72 }); [-.13, .13, 0].forEach((leafX, index) => { const leaf = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 6), leafMaterial); leaf.scale.set(.65, 1.35, .35); leaf.position.set(leafX, .72 + index * .04, index === 1 ? .06 : -.03); leaf.rotation.z = leafX * 2; plant.add(leaf); }); return plant;
 }
 
 function makeLabel(text, color) {
