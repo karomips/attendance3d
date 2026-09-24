@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build attendance app",
+			"type": "shell",
+			"command": "cd /d c:\\xampp\\htdocs\\attendance3d && npm run build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build attendance app",
+			"type": "shell",
+			"command": "powershell -NoProfile -Command \"Set-Location 'c:\\xampp\\htdocs\\attendance3d'; npm run build\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

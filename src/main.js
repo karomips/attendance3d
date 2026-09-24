@@ -15,22 +15,14 @@ const app = document.querySelector('#app');
 app.innerHTML = `
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark">H</span><div><strong>HAVEN</strong><small>ATTENDANCE CONTROL</small></div></div>
-      <div class="topbar-center"><span class="live-dot"></span><span>LIVE OFFICE MAP</span><span class="divider"></span><span id="clock">09:32:18</span></div>
+      <div class="brand"><span class="brand-mark">H</span><div><strong>FormOne VA</strong><small>OFFICE FLOOR PLAN</small></div></div>
+      <div class="topbar-center"><span class="live-dot"></span><span>Live Office Map</span><span class="divider"></span><span id="clock">09:32:18</span></div>
       <div class="top-actions"><button class="icon-button" aria-label="Notifications">⌁<span class="notification-dot"></span></button><div class="admin-avatar">AD</div><span class="admin-name">Avery Dalton</span><span class="chevron">⌄</span></div>
     </header>
     <main class="main-layout">
-      <aside class="sidebar">
-        <div class="sidebar-heading"><div><span class="eyebrow">TODAY / MON 14 OCT</span><h1>People</h1></div><button class="filter-button">All <span>⌄</span></button></div>
-        <div class="summary-row"><span><i class="status-dot online"></i><b id="active-count">4</b> active</span><span id="away-count">3 away</span></div>
-        <div class="employee-list" id="employee-list"></div>
-        <button class="add-button"><span>+</span> Add employee</button>
-        <div class="sidebar-footer"><span class="sync-icon">↻</span><span>Last sync <b>just now</b></span><span class="sync-status"></span></div>
-      </aside>
       <section class="workspace">
-        <div class="workspace-head"><div><span class="eyebrow">FLOOR PLAN / HQ LEVEL 04</span><h2>Office presence</h2></div><div class="workspace-tools"><div class="legend"><span><i class="legend-dot present"></i>Present</span><span><i class="legend-dot room"></i>Space</span></div><button class="view-button"><span>◈</span> Isometric <span>⌄</span></button></div></div>
+        <div class="workspace-head"><div><span class="eyebrow">FLOOR PLAN / HQ LEVEL 04</span><h2>Executive office layout</h2></div><div class="workspace-tools"><div class="legend"><span><i class="legend-dot present"></i>Present</span><span><i class="legend-dot room"></i>Room</span></div><button class="view-button"><span>◈</span> Isometric <span>⌄</span></button></div></div>
         <div class="scene-wrap"><div id="scene"></div><div class="scene-overlay"><span class="scene-tag"><i class="live-dot"></i> AUTO REFRESH 30S</span><span class="scene-help">Drag to orbit · scroll to zoom</span></div><div class="floor-label">LEVEL 04 <span>·</span> NORTH WING</div></div>
-        <div class="bottom-stats"><div><span class="stat-label">ON SITE</span><strong id="onsite-stat">04</strong><small>of 07 employees</small></div><div><span class="stat-label">SPACES IN USE</span><strong id="rooms-stat">03</strong><small id="room-subtitle">of 07 spaces</small></div><div><span class="stat-label">FIRST ARRIVAL</span><strong>08:42</strong><small>Maya Chen</small></div><div><span class="stat-label">SYNC HEALTH</span><strong class="health">100%</strong><small>All systems normal</small></div></div>
       </section>
     </main>
   </div>
@@ -38,23 +30,32 @@ app.innerHTML = `
 
 const list = document.querySelector('#employee-list');
 let pendingArrivalId = null;
+let pendingDepartureId = null;
 function renderEmployees() {
-  list.innerHTML = employees.map(employee => `
-    <button class="employee-row ${employee.active ? 'is-active' : ''}" data-id="${employee.id}">
-      <span class="person-avatar" style="--avatar-color:${employee.color}">${employee.initials}<i></i></span>
-      <span class="person-info"><strong>${employee.name}</strong><small>${employee.role}</small></span>
-      <span class="presence-info"><b>${employee.active ? 'IN' : 'OUT'}</b><small>${employee.active ? employee.since : 'Away'}</small></span>
-      <span class="row-arrow">›</span>
-    </button>
-  `).join('');
-  document.querySelectorAll('.employee-row').forEach(row => row.addEventListener('click', () => toggleEmployee(Number(row.dataset.id))));
+  if (list) {
+    list.innerHTML = employees.map(employee => `
+      <button class="employee-row ${employee.active ? 'is-active' : ''}" data-id="${employee.id}">
+        <span class="person-avatar" style="--avatar-color:${employee.color}">${employee.initials}<i></i></span>
+        <span class="person-info"><strong>${employee.name}</strong><small>${employee.role}</small></span>
+        <span class="presence-info"><b>${employee.active ? 'IN' : 'OUT'}</b><small>${employee.active ? employee.since : 'Away'}</small></span>
+        <span class="row-arrow">›</span>
+      </button>
+    `).join('');
+    document.querySelectorAll('.employee-row').forEach(row => row.addEventListener('click', () => toggleEmployee(Number(row.dataset.id))));
+  }
+
   const active = employees.filter(employee => employee.active).length;
-  document.querySelector('#active-count').textContent = active;
-  document.querySelector('#away-count').textContent = `${employees.length - active} away`;
-  document.querySelector('#onsite-stat').textContent = String(active).padStart(2, '0');
-  document.querySelector('#rooms-stat').textContent = String(active).padStart(2, '0');
-  renderScene(pendingArrivalId);
+  const activeCount = document.querySelector('#active-count');
+  const awayCount = document.querySelector('#away-count');
+  const onsiteStat = document.querySelector('#onsite-stat');
+  const roomsStat = document.querySelector('#rooms-stat');
+  if (activeCount) activeCount.textContent = active;
+  if (awayCount) awayCount.textContent = `${employees.length - active} away`;
+  if (onsiteStat) onsiteStat.textContent = String(active).padStart(2, '0');
+  if (roomsStat) roomsStat.textContent = String(active).padStart(2, '0');
+  renderScene(pendingArrivalId, pendingDepartureId);
   pendingArrivalId = null;
+  pendingDepartureId = null;
 }
 
 function toggleEmployee(id) {
@@ -62,6 +63,7 @@ function toggleEmployee(id) {
   employee.active = !employee.active;
   employee.since = employee.active ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--:--';
   pendingArrivalId = employee.active ? employee.id : null;
+  pendingDepartureId = employee.active ? null : employee.id;
   renderEmployees();
 }
 
@@ -70,8 +72,8 @@ function initScene() {
   const mount = document.querySelector('#scene');
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#dfece8');
-  camera = new THREE.PerspectiveCamera(40, mount.clientWidth / mount.clientHeight, 0.1, 140);
-  camera.position.set(0, 13, 31);
+  camera = new THREE.OrthographicCamera(-21, 21, 11, -11, 0.1, 140);
+  camera.position.set(0, 17, 30);
   camera.lookAt(0, 0, 0);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -86,25 +88,90 @@ function initScene() {
   mount.addEventListener('pointerdown', event => { orbit.down = true; orbit.px = event.clientX; orbit.py = event.clientY; });
   window.addEventListener('pointerup', () => { orbit.down = false; });
   window.addEventListener('pointermove', event => { if (!orbit.down) return; orbit.x += (event.clientX - orbit.px) * 0.008; orbit.y = THREE.MathUtils.clamp(orbit.y + (event.clientY - orbit.py) * 0.005, 0.45, 1.5); orbit.px = event.clientX; orbit.py = event.clientY; });
-  mount.addEventListener('wheel', event => { camera.position.multiplyScalar(event.deltaY > 0 ? 1.06 : 0.94); camera.position.clampLength(8, 18); });
-  window.addEventListener('resize', () => { camera.aspect = mount.clientWidth / mount.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(mount.clientWidth, mount.clientHeight); });
+  mount.addEventListener('wheel', event => { const zoom = event.deltaY > 0 ? 1.06 : 0.94; camera.zoom = THREE.MathUtils.clamp(camera.zoom * zoom, .7, 1.5); camera.updateProjectionMatrix(); });
+  window.addEventListener('resize', () => { const aspect = mount.clientWidth / mount.clientHeight; camera.left = -11 * aspect; camera.right = 11 * aspect; camera.updateProjectionMatrix(); renderer.setSize(mount.clientWidth, mount.clientHeight); });
   renderScene(); animate();
 }
 
-function makeRoom(x, z, employee) {
-  const occupied = employee.active; const style = employee.id % 3; const group = new THREE.Group(); group.position.set(x, 0, z);
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(5.32, 0.18, 3.4), new THREE.MeshStandardMaterial({ color: occupied ? '#bfd4cd' : '#d0e0da', roughness: 0.84 }));
+function makeRoom(x, z, employee, roomType = 'workspace') {
+  const occupied = !!employee?.active;
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+
+  const styles = {
+    ceo: { floor: '#efe4d0', wall: '#f7f2eb', accent: '#d39e66', desk: '#8d5a3d', trim: '#5a4338', label: '#5d433a' },
+    coo: { floor: '#ddeaf1', wall: '#f3f7f8', accent: '#88b7d6', desk: '#8a5e49', trim: '#425d70', label: '#3f6179' },
+    manager: { floor: '#e7efd9', wall: '#f7f4ee', accent: '#a9c38d', desk: '#8a6647', trim: '#425947', label: '#3d5d46' },
+    meeting: { floor: '#efe0c9', wall: '#f7efe8', accent: '#d07a59', desk: '#bf7e5d', trim: '#6a564c', label: '#5b453f' },
+    bathroom: { floor: '#d6edf3', wall: '#f2f9fb', accent: '#9ec9d9', desk: '#dbeef2', trim: '#4e6d77', label: '#4e6d77' },
+    lobby: { floor: '#e5edea', wall: '#f4f5f1', accent: '#c9b98d', desk: '#d9c9b4', trim: '#6e7c7a', label: '#526a63' },
+    workspace: { floor: occupied ? '#edf3ee' : '#f0f4f2', wall: '#f6f3f0', accent: '#d9b46f', desk: '#b9805b', trim: '#4e6368', label: '#40615d' }
+  };
+
+  const palette = styles[roomType] || styles.workspace;
+  const width = roomType === 'meeting' ? 6.2 : roomType === 'bathroom' ? 4.4 : roomType === 'lobby' ? 8.4 : 5.9;
+  const depth = roomType === 'meeting' ? 4.7 : roomType === 'bathroom' ? 3.1 : roomType === 'lobby' ? 5.2 : 3.8;
+
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.18, depth), new THREE.MeshStandardMaterial({ color: palette.floor, roughness: 0.84 }));
   floor.position.y = 0.09; floor.receiveShadow = true; group.add(floor);
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: '#e4ebe7', roughness: 0.75 });
-  const back = new THREE.Mesh(new THREE.BoxGeometry(5.25, .75, .1), wallMaterial); back.position.set(0, .48, -1.62); group.add(back);
-  if (style !== 1) { const side = new THREE.Mesh(new THREE.BoxGeometry(.08, .95, 2.5), wallMaterial); side.position.set(-2.63, .55, .05); group.add(side); }
-  group.add(makeDesk(0, 0.15, occupied ? ['#b87951', '#5f9e9a', '#c18b55'][style] : ['#c7936d', '#82aaa5', '#d0a16c'][style], style));
-  if (style !== 2) group.add(makePlant(1.95, -1.2));
-  if (style === 0) { const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.82, 0.04), new THREE.MeshStandardMaterial({ color: '#293f48', roughness: .4 })); windowFrame.position.set(1.35, 1.28, -1.53); group.add(windowFrame); const windowLight = new THREE.Mesh(new THREE.BoxGeometry(1.12, .59, .045), new THREE.MeshStandardMaterial({ color: '#83bfc3', emissive: '#23464b', emissiveIntensity: .65, roughness: .25 })); windowLight.position.set(1.35, 1.28, -1.5); group.add(windowLight); }
-  const art = new THREE.Mesh(new THREE.BoxGeometry(style === 2 ? .9 : .55, style === 2 ? .42 : .72, .035), new THREE.MeshStandardMaterial({ color: occupied ? ['#f1b37f', '#83b9b2', '#d6a85e'][style] : '#b7d8d2', roughness: .65 })); art.position.set(-1.3, 1.05, -1.53); group.add(art);
-  const roomText = makeLabel(employee.name, occupied ? '#347b64' : '#75918d'); roomText.position.set(-2.25, 1.55, -1.5); roomText.scale.setScalar(0.48); group.add(roomText);
+
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: palette.wall, roughness: 0.75 });
+  const back = new THREE.Mesh(new THREE.BoxGeometry(width - 0.45, 0.72, 0.1), wallMaterial); back.position.set(0, 0.48, -(depth / 2) + 0.15); group.add(back);
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.95, depth - 0.35), wallMaterial); leftWall.position.set(-(width / 2) + 0.15, 0.55, 0); group.add(leftWall);
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.95, depth - 0.35), wallMaterial); rightWall.position.set((width / 2) - 0.15, 0.55, 0); group.add(rightWall);
+
+  if (roomType === 'bathroom') {
+    const sink = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.26, 0.42), new THREE.MeshStandardMaterial({ color: '#dfeef4', roughness: 0.38 })); sink.position.set(1.15, 0.52, 0.7); group.add(sink);
+    const toilet = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.36, 0.58), new THREE.MeshStandardMaterial({ color: '#f7fbfd', roughness: 0.42 })); base.position.y = 0.24; toilet.add(base);
+    const tank = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.44, 0.2), new THREE.MeshStandardMaterial({ color: '#e3edf2', roughness: 0.42 })); tank.position.set(0, 0.62, -0.12); toilet.add(tank);
+    toilet.position.set(-1.2, 0, 0.16); group.add(toilet);
+    const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.66, 0.04), new THREE.MeshStandardMaterial({ color: '#d9edf4', emissive: '#c7eaf2', emissiveIntensity: 0.16 })); mirror.position.set(-0.1, 1.15, -(depth / 2) + 0.18); group.add(mirror);
+  } else if (roomType === 'meeting') {
+    const table = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.12, 1.35), new THREE.MeshStandardMaterial({ color: '#c5825f', roughness: 0.55 })); table.position.set(0, 0.84, 0.2); group.add(table);
+    for (let i = 0; i < 6; i += 1) {
+      const chair = new THREE.Group();
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.38), new THREE.MeshStandardMaterial({ color: '#7d645d', roughness: 0.8 })); seat.position.y = 0.28; chair.add(seat);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.08), new THREE.MeshStandardMaterial({ color: '#886f63', roughness: 0.74 })); back.position.set(0, 0.5, -0.12); chair.add(back);
+      chair.position.set(-1.05 + (i % 3) * 1.1, 0, -0.6 + Math.floor(i / 3) * 1.1);
+      group.add(chair);
+    }
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.72, 0.06), new THREE.MeshStandardMaterial({ color: '#edf4f5', roughness: 0.55 })); board.position.set(0, 1.28, -(depth / 2) + 0.18); group.add(board);
+  } else if (roomType === 'lobby') {
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.85, 0.75), new THREE.MeshStandardMaterial({ color: '#d8d5cc', roughness: 0.62 })); counter.position.set(0, 0.42, 0.7); group.add(counter);
+    const desk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 0.65), new THREE.MeshStandardMaterial({ color: '#d4baa0', roughness: 0.56 })); desk.position.set(0, 0.82, 0.15); group.add(desk);
+    const chair = new THREE.Group();
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.12, 0.42), new THREE.MeshStandardMaterial({ color: '#4a4e66', roughness: 0.82 })); chairSeat.position.y = 0.32; chair.add(chairSeat);
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.52, 0.08), new THREE.MeshStandardMaterial({ color: '#485d68', roughness: 0.76 })); chairBack.position.set(0, 0.58, -0.12); chair.add(chairBack);
+    chair.position.set(0, 0, 1.14); group.add(chair);
+    const sofa = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.8), new THREE.MeshStandardMaterial({ color: '#d9c7b0', roughness: 0.8 })); sofa.position.set(-2.2, 0.28, 1.2); group.add(sofa);
+    const plant = new THREE.Group();
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.15, 0.28, 12), new THREE.MeshStandardMaterial({ color: '#c7785a', roughness: 0.7 })); pot.position.set(2.2, 0.22, -1.0); plant.add(pot);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.55, 6), new THREE.MeshStandardMaterial({ color: '#4d8d5b', roughness: 0.8 })); stem.position.set(2.2, 0.64, -1.0); plant.add(stem);
+    group.add(plant);
+  } else {
+    const desk = new THREE.Mesh(new THREE.BoxGeometry(roomType === 'ceo' || roomType === 'coo' ? 1.9 : 1.45, 0.12, 0.75), new THREE.MeshStandardMaterial({ color: palette.desk, roughness: 0.58 })); desk.position.set(0, 0.82, 0.15); group.add(desk);
+    const chair = new THREE.Group(); chair.position.set(0, 0, 0.8);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.42), new THREE.MeshStandardMaterial({ color: '#3d4f5f', roughness: 0.82 })); seat.position.y = 0.32; chair.add(seat);
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.56, 0.08), new THREE.MeshStandardMaterial({ color: '#2d4250', roughness: 0.75 })); chairBack.position.set(0, 0.58, -0.12); chair.add(chairBack);
+    group.add(chair);
+    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.52, 12), new THREE.MeshStandardMaterial({ color: '#d2bd94', roughness: 0.5 })); lamp.position.set(1.18, 1.1, 0.2); group.add(lamp);
+    const plant = new THREE.Group();
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.24, 12), new THREE.MeshStandardMaterial({ color: '#c7785a', roughness: 0.7 })); pot.position.set(-1.75, 0.2, -0.7); plant.add(pot);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.52, 6), new THREE.MeshStandardMaterial({ color: '#4b8d5e', roughness: 0.8 })); stem.position.set(-1.75, 0.6, -0.7); plant.add(stem);
+    group.add(plant);
+  }
+
+  const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.04), new THREE.MeshStandardMaterial({ color: palette.trim, roughness: 0.45 })); windowFrame.position.set(1.45, 1.24, -(depth / 2) + 0.18); group.add(windowFrame);
+  const windowLight = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.54, 0.045), new THREE.MeshStandardMaterial({ color: '#8cbad7', emissive: '#214858', emissiveIntensity: 0.6, roughness: 0.25 })); windowLight.position.set(1.45, 1.24, -(depth / 2) + 0.2); group.add(windowLight);
+
+  const art = new THREE.Mesh(new THREE.BoxGeometry(roomType === 'bathroom' ? 0.95 : 0.7, roomType === 'bathroom' ? 0.5 : 0.72, 0.04), new THREE.MeshStandardMaterial({ color: palette.accent, roughness: 0.65 })); art.position.set(-1.2, 1.12, -(depth / 2) + 0.2); group.add(art);
+
+  const labelText = roomType === 'ceo' ? 'CEO OFFICE' : roomType === 'coo' ? 'COO OFFICE' : roomType === 'manager' ? 'MANAGER OFFICE' : roomType === 'meeting' ? 'MEETING ROOM' : roomType === 'bathroom' ? 'BATHROOM' : roomType === 'lobby' ? 'LOBBY' : 'WORKSPACE';
+  const label = makeLabel(employee?.name && roomType === 'workspace' ? employee.name : labelText, palette.label); label.position.set(-1.55, 1.7, -(depth / 2) + 0.15); label.scale.setScalar(roomType === 'bathroom' ? 0.38 : 0.42); group.add(label);
   return group;
 }
+
 
 function makeDesk(x, z, woodColor, style = 0) {
   const desk = new THREE.Group(); desk.position.set(x, 0, z);
@@ -133,13 +200,13 @@ function makePlant(x, z) {
   const leafMaterial = new THREE.MeshStandardMaterial({ color: '#63a978', roughness: .72 }); [-.13, .13, 0].forEach((leafX, index) => { const leaf = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 6), leafMaterial); leaf.scale.set(.65, 1.35, .35); leaf.position.set(leafX, .72 + index * .04, index === 1 ? .06 : -.03); leaf.rotation.z = leafX * 2; plant.add(leaf); }); return plant;
 }
 
-function makeEntranceAndParking(entranceX) {
+function makeEntranceAndParking(entranceX, totalWidth) {
   const group = new THREE.Group(); const glass = new THREE.MeshStandardMaterial({ color: '#78b9bd', transparent: true, opacity: .48, roughness: .2 }); const frame = new THREE.MeshStandardMaterial({ color: '#355b59', roughness: .35 });
   const door = new THREE.Mesh(new THREE.BoxGeometry(.9, 2.25, .08), glass); door.position.set(entranceX, 1.12, -1.58); group.add(door);
   [-.5, .5].forEach(offset => { const post = new THREE.Mesh(new THREE.BoxGeometry(.08, 2.45, .1), frame); post.position.set(entranceX + offset, 1.22, -1.58); group.add(post); });
   const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.9, .12, .7), frame); canopy.position.set(entranceX, 2.35, -1.42); group.add(canopy);
-  const parking = new THREE.Mesh(new THREE.BoxGeometry(4.2, .035, 2.7), new THREE.MeshStandardMaterial({ color: '#aebfbd', roughness: .9 })); parking.position.set(entranceX - 2.8, .02, 3.3); group.add(parking);
-  for (let index = 0; index < 3; index += 1) { const line = new THREE.Mesh(new THREE.BoxGeometry(.05, .012, 2.2), new THREE.MeshBasicMaterial({ color: '#f4e7ad' })); line.position.set(entranceX - 4.1 + index * 1.3, .05, 3.3); group.add(line); }
+  const parking = new THREE.Mesh(new THREE.BoxGeometry(totalWidth + 2.2, .035, 2.7), new THREE.MeshStandardMaterial({ color: '#aebfbd', roughness: .9 })); parking.position.set(0, .02, 4.15); group.add(parking);
+  for (let index = 0; index <= Math.ceil(totalWidth / 2.6); index += 1) { const line = new THREE.Mesh(new THREE.BoxGeometry(.05, .012, 2.2), new THREE.MeshBasicMaterial({ color: '#f4e7ad' })); line.position.set(-totalWidth / 2 - .4 + index * 2.6, .05, 4.15); group.add(line); }
   const sign = makeLabel('MAIN ENTRANCE', '#355b59'); sign.position.set(entranceX, 2.7, -1.5); sign.scale.setScalar(.48); group.add(sign); return group;
 }
 
@@ -193,29 +260,53 @@ function makePerson(employee, x, z) {
   animatedPeople.push(group); return group;
 }
 
-function renderScene(arrivingId = null) {
+function renderScene(arrivingId = null, departingId = null) {
   if (!officeGroup) return;
   officeGroup.clear();
   animatedPeople = [];
   arrivals = [];
-  const spaces = employees.length;
-  const totalWidth = spaces * 5.35; const entranceX = -totalWidth / 2 - 1.05;
-  employees.forEach((employee, index) => {
-    const x = index * 5.35 - ((spaces - 1) * 5.35) / 2; const z = 0; const space = makeRoom(x, z, employee); officeGroup.add(space);
-    if (employee.active && employee.id !== arrivingId) space.add(makePerson(employee, 0, -0.25));
-    if (employee.id === arrivingId) {
-      const person = makePerson(employee, entranceX, 1.6); person.userData.arriving = true; person.visible = false; officeGroup.add(person);
-      const car = makeCar(employee.color); car.position.set(entranceX - 2.8, 0, 3.5); officeGroup.add(car);
-      arrivals.push({ car, person, startX: entranceX, targetX: x, elapsed: 0, phase: 'drive' });
+
+  const roomDefs = [
+    { type: 'ceo', x: -18, z: 0, employee: employees[0] },
+    { type: 'coo', x: -10.5, z: 0, employee: employees[1] },
+    { type: 'manager', x: -3.6, z: 0, employee: employees[2] },
+    { type: 'manager', x: 3.8, z: 0, employee: employees[3] },
+    { type: 'meeting', x: 11.1, z: 0, employee: employees[4] },
+    { type: 'bathroom', x: 18.8, z: 0, employee: employees[5] },
+    { type: 'lobby', x: 0, z: 4.8, employee: employees[6] }
+  ];
+
+  roomDefs.forEach((room) => {
+    const roomGroup = makeRoom(room.x, room.z, room.employee, room.type);
+    officeGroup.add(roomGroup);
+
+    if (room.employee && room.employee.active && room.type !== 'bathroom' && room.type !== 'lobby') {
+      const person = makePerson(room.employee, room.x, room.z + 0.15);
+      person.position.y = 0.22;
+      officeGroup.add(person);
+      animatedPeople.push(person);
+    }
+
+    if (room.employee && room.employee.id === arrivingId) {
+      const person = makePerson(room.employee, 0, 2.1); person.userData.arriving = true; person.visible = false; officeGroup.add(person);
+      const car = makeCar(room.employee.color); car.position.set(room.x, 0, 5.8); officeGroup.add(car);
+      arrivals.push({ car, person, startX: 0, targetX: room.x, elapsed: 0, phase: 'arrival-drive' });
+    }
+
+    if (room.employee && room.employee.id === departingId) {
+      const person = makePerson(room.employee, room.x, room.z + 0.15); person.userData.arriving = true; officeGroup.add(person);
+      const car = makeCar(room.employee.color); car.position.set(room.x, 0, 4.2); officeGroup.add(car);
+      arrivals.push({ car, person, startX: room.x, targetX: 0, elapsed: 0, phase: 'departure-walk', parkingX: room.x });
     }
   });
-  officeGroup.add(makeEntranceAndParking(entranceX));
-  const totalDepth = 6.7; const base = new THREE.Mesh(new THREE.BoxGeometry(totalWidth + 2.4, 0.08, totalDepth), new THREE.MeshStandardMaterial({ color: '#b7cbc7', roughness: 1 })); base.position.set(-.6, -0.05, 1.15); base.receiveShadow = true; officeGroup.add(base);
-  const corridor = new THREE.Mesh(new THREE.BoxGeometry(totalWidth - .4, .035, .9), new THREE.MeshStandardMaterial({ color: '#e3cda9', roughness: .88 })); corridor.position.set(0, .015, 1.6); corridor.receiveShadow = true; officeGroup.add(corridor);
-  const hallRunner = new THREE.Mesh(new THREE.BoxGeometry(totalWidth - .7, .012, .24), new THREE.MeshStandardMaterial({ color: '#86b8aa', roughness: .92 })); hallRunner.position.set(0, .04, 1.6); officeGroup.add(hallRunner);
+
+  officeGroup.add(makeEntranceAndParking(0, 42));
+  const base = new THREE.Mesh(new THREE.BoxGeometry(44, 0.08, 12.5), new THREE.MeshStandardMaterial({ color: '#b7cbc7', roughness: 1 })); base.position.set(0, -0.05, 1.4); base.receiveShadow = true; officeGroup.add(base);
+  const corridor = new THREE.Mesh(new THREE.BoxGeometry(38, .035, 1.2), new THREE.MeshStandardMaterial({ color: '#e3cda9', roughness: .88 })); corridor.position.set(0, .015, 2.2); corridor.receiveShadow = true; officeGroup.add(corridor);
+  const hallRunner = new THREE.Mesh(new THREE.BoxGeometry(34, .012, .24), new THREE.MeshStandardMaterial({ color: '#86b8aa', roughness: .92 })); hallRunner.position.set(0, .04, 2.2); officeGroup.add(hallRunner);
 }
 
-function animate(time = 0) { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; animatedPeople.forEach(person => { const wave = Math.sin(time * .0022 + person.userData.phase); if (!person.userData.arriving) { person.position.y = .18 + wave * .025; person.rotation.z = wave * .012; } person.children.filter(child => child.name === 'arm').forEach((arm, index) => { arm.rotation.x = wave * (index ? -.16 : .16); }); const glow = person.children.find(child => child.geometry?.type === 'RingGeometry'); if (glow) glow.material.opacity = .26 + (wave + 1) * .08; }); arrivals.forEach(arrival => { arrival.elapsed += .016; if (arrival.phase === 'drive') { const progress = Math.min(arrival.elapsed / 1.2, 1); arrival.car.position.z = 3.5 - progress * 1.9; if (progress === 1) { arrival.phase = 'walk'; arrival.elapsed = 0; arrival.car.visible = false; arrival.person.visible = true; } } else if (arrival.phase === 'walk') { const progress = Math.min(arrival.elapsed / 2.6, 1); arrival.person.position.x = THREE.MathUtils.lerp(arrival.startX, arrival.targetX, progress); arrival.person.position.z = THREE.MathUtils.lerp(1.6, -.25, progress); if (progress === 1) { arrival.phase = 'done'; arrival.person.userData.arriving = false; } } }); renderer.render(scene, camera); }
+function animate(time = 0) { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; animatedPeople.forEach(person => { const wave = Math.sin(time * .0022 + person.userData.phase); if (!person.userData.arriving) { person.position.y = .18 + wave * .025; person.rotation.z = wave * .012; } person.children.filter(child => child.name === 'arm').forEach((arm, index) => { arm.rotation.x = wave * (index ? -.16 : .16); }); const glow = person.children.find(child => child.geometry?.type === 'RingGeometry'); if (glow) glow.material.opacity = .26 + (wave + 1) * .08; }); arrivals.forEach(arrival => { arrival.elapsed += .016; if (arrival.phase === 'arrival-drive') { const progress = Math.min(arrival.elapsed / 1.15, 1); arrival.car.position.z = THREE.MathUtils.lerp(6, 2.8, progress); if (progress === 1) { arrival.phase = 'arrival-door'; arrival.elapsed = 0; } } else if (arrival.phase === 'arrival-door') { const progress = Math.min(arrival.elapsed / .8, 1); arrival.car.position.x = THREE.MathUtils.lerp(arrival.targetX, 0, progress); arrival.car.position.z = THREE.MathUtils.lerp(2.8, 2.1, progress); if (progress === 1) { arrival.phase = 'walk'; arrival.elapsed = 0; arrival.car.visible = false; arrival.person.visible = true; } } else if (arrival.phase === 'walk') { const progress = Math.min(arrival.elapsed / 2.6, 1); arrival.person.position.x = THREE.MathUtils.lerp(0, arrival.targetX, progress); arrival.person.position.z = THREE.MathUtils.lerp(1.6, -.25, progress); if (progress === 1) { arrival.phase = 'done'; arrival.person.userData.arriving = false; } } else if (arrival.phase === 'departure-walk') { const progress = Math.min(arrival.elapsed / 2.5, 1); arrival.person.position.x = THREE.MathUtils.lerp(arrival.parkingX, 0, progress); arrival.person.position.z = THREE.MathUtils.lerp(-.25, 1.6, progress); if (progress === 1) { arrival.phase = 'departure-car'; arrival.elapsed = 0; } } else if (arrival.phase === 'departure-car') { const progress = Math.min(arrival.elapsed / 1.4, 1); arrival.person.position.x = THREE.MathUtils.lerp(0, arrival.parkingX, progress); arrival.person.position.z = THREE.MathUtils.lerp(1.6, 4.15, progress); if (progress === 1) { arrival.phase = 'departure-drive'; arrival.elapsed = 0; arrival.person.visible = false; } } else if (arrival.phase === 'departure-drive') { const progress = Math.min(arrival.elapsed / 1.2, 1); arrival.car.position.z = THREE.MathUtils.lerp(4.15, 6.5, progress); if (progress === 1) arrival.phase = 'done'; } }); renderer.render(scene, camera); }
 
 function updateClock() { document.querySelector('#clock').textContent = new Date().toLocaleTimeString([], { hour12: false }); }
 initScene(); renderEmployees(); updateClock(); setInterval(updateClock, 1000);
