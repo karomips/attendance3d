@@ -37,6 +37,7 @@ app.innerHTML = `
 `;
 
 const list = document.querySelector('#employee-list');
+let pendingArrivalId = null;
 function renderEmployees() {
   list.innerHTML = employees.map(employee => `
     <button class="employee-row ${employee.active ? 'is-active' : ''}" data-id="${employee.id}">
@@ -52,17 +53,19 @@ function renderEmployees() {
   document.querySelector('#away-count').textContent = `${employees.length - active} away`;
   document.querySelector('#onsite-stat').textContent = String(active).padStart(2, '0');
   document.querySelector('#rooms-stat').textContent = String(active).padStart(2, '0');
-  renderScene();
+  renderScene(pendingArrivalId);
+  pendingArrivalId = null;
 }
 
 function toggleEmployee(id) {
   const employee = employees.find(item => item.id === id);
   employee.active = !employee.active;
   employee.since = employee.active ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--:--';
+  pendingArrivalId = employee.active ? employee.id : null;
   renderEmployees();
 }
 
-let scene, camera, renderer, officeGroup, animatedPeople = [], orbit = { x: 0, y: 0.9, down: false, px: 0, py: 0 };
+let scene, camera, renderer, officeGroup, animatedPeople = [], arrivals = [], orbit = { x: 0, y: 0.9, down: false, px: 0, py: 0 };
 function initScene() {
   const mount = document.querySelector('#scene');
   scene = new THREE.Scene();
@@ -88,36 +91,36 @@ function initScene() {
   renderScene(); animate();
 }
 
-function makeRoom(x, z, label, occupied) {
-  const group = new THREE.Group(); group.position.set(x, 0, z);
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.18, 3.4), new THREE.MeshStandardMaterial({ color: occupied ? '#bfd4cd' : '#d0e0da', roughness: 0.84 }));
+function makeRoom(x, z, employee) {
+  const occupied = employee.active; const style = employee.id % 3; const group = new THREE.Group(); group.position.set(x, 0, z);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(5.32, 0.18, 3.4), new THREE.MeshStandardMaterial({ color: occupied ? '#bfd4cd' : '#d0e0da', roughness: 0.84 }));
   floor.position.y = 0.09; floor.receiveShadow = true; group.add(floor);
   const wallMaterial = new THREE.MeshStandardMaterial({ color: '#e4ebe7', roughness: 0.75 });
-  const back = new THREE.Mesh(new THREE.BoxGeometry(4.9, 2.15, 0.16), wallMaterial); back.position.set(0, 1.1, -1.62); group.add(back);
-  const side = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.15, 3.4), wallMaterial); side.position.set(-2.37, 1.1, 0); group.add(side);
-  group.add(makeDesk(0, 0.15, occupied ? '#b87951' : '#c7936d'));
-  group.add(makePlant(1.9, -1.2));
-  const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.82, 0.04), new THREE.MeshStandardMaterial({ color: '#293f48', roughness: .4 })); windowFrame.position.set(1.35, 1.28, -1.53); group.add(windowFrame);
-  const windowLight = new THREE.Mesh(new THREE.BoxGeometry(1.12, .59, .045), new THREE.MeshStandardMaterial({ color: '#83bfc3', emissive: '#23464b', emissiveIntensity: .65, roughness: .25 })); windowLight.position.set(1.35, 1.28, -1.5); group.add(windowLight);
-  const art = new THREE.Mesh(new THREE.BoxGeometry(.55, .72, .035), new THREE.MeshStandardMaterial({ color: occupied ? '#f1b37f' : '#b7d8d2', roughness: .65 })); art.position.set(-1.3, 1.25, -1.53); group.add(art);
-  const roomText = makeLabel(label, occupied ? '#347b64' : '#75918d'); roomText.position.set(-2.12, 2.05, -1.5); roomText.scale.setScalar(0.55); group.add(roomText);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(5.25, .75, .1), wallMaterial); back.position.set(0, .48, -1.62); group.add(back);
+  if (style !== 1) { const side = new THREE.Mesh(new THREE.BoxGeometry(.08, .95, 2.5), wallMaterial); side.position.set(-2.63, .55, .05); group.add(side); }
+  group.add(makeDesk(0, 0.15, occupied ? ['#b87951', '#5f9e9a', '#c18b55'][style] : ['#c7936d', '#82aaa5', '#d0a16c'][style], style));
+  if (style !== 2) group.add(makePlant(1.95, -1.2));
+  if (style === 0) { const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.82, 0.04), new THREE.MeshStandardMaterial({ color: '#293f48', roughness: .4 })); windowFrame.position.set(1.35, 1.28, -1.53); group.add(windowFrame); const windowLight = new THREE.Mesh(new THREE.BoxGeometry(1.12, .59, .045), new THREE.MeshStandardMaterial({ color: '#83bfc3', emissive: '#23464b', emissiveIntensity: .65, roughness: .25 })); windowLight.position.set(1.35, 1.28, -1.5); group.add(windowLight); }
+  const art = new THREE.Mesh(new THREE.BoxGeometry(style === 2 ? .9 : .55, style === 2 ? .42 : .72, .035), new THREE.MeshStandardMaterial({ color: occupied ? ['#f1b37f', '#83b9b2', '#d6a85e'][style] : '#b7d8d2', roughness: .65 })); art.position.set(-1.3, 1.05, -1.53); group.add(art);
+  const roomText = makeLabel(employee.name, occupied ? '#347b64' : '#75918d'); roomText.position.set(-2.25, 1.55, -1.5); roomText.scale.setScalar(0.48); group.add(roomText);
   return group;
 }
 
-function makeDesk(x, z, woodColor) {
+function makeDesk(x, z, woodColor, style = 0) {
   const desk = new THREE.Group(); desk.position.set(x, 0, z);
   const wood = new THREE.MeshStandardMaterial({ color: woodColor, roughness: .58 }); const metal = new THREE.MeshStandardMaterial({ color: '#28383d', roughness: .38 });
-  const top = new THREE.Mesh(new THREE.BoxGeometry(1.65, .12, .7), wood); top.position.y = .82; top.castShadow = true; desk.add(top);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(style === 1 ? 1.9 : 1.65, .12, .7), wood); top.position.y = .82; top.castShadow = true; desk.add(top);
   [-.62, .62].forEach(legX => { const leg = new THREE.Mesh(new THREE.BoxGeometry(.08, .72, .08), metal); leg.position.set(legX, .42, 0); leg.castShadow = true; desk.add(leg); });
-  const monitor = new THREE.Mesh(new THREE.BoxGeometry(.62, .38, .06), new THREE.MeshStandardMaterial({ color: '#26353a', emissive: '#1d5653', emissiveIntensity: .55, roughness: .25 })); monitor.position.set(0, 1.1, -.08); monitor.castShadow = true; desk.add(monitor);
+  const monitor = new THREE.Mesh(new THREE.BoxGeometry(style === 2 ? .82 : .62, style === 2 ? .28 : .38, .06), new THREE.MeshStandardMaterial({ color: '#26353a', emissive: '#1d5653', emissiveIntensity: .55, roughness: .25 })); monitor.position.set(style === 1 ? -.22 : 0, 1.1, -.08); monitor.castShadow = true; desk.add(monitor);
+  if (style === 1) { const secondMonitor = monitor.clone(); secondMonitor.position.x = .42; secondMonitor.scale.set(.65, .85, 1); desk.add(secondMonitor); }
   const monitorStand = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, .2, 8), metal); monitorStand.position.set(0, .9, -.08); desk.add(monitorStand);
   const keyboard = new THREE.Mesh(new THREE.BoxGeometry(.48, .025, .18), new THREE.MeshStandardMaterial({ color: '#c3b8a0', roughness: .5 })); keyboard.position.set(0, .9, .2); desk.add(keyboard);
   const lamp = new THREE.Group(); const lampStem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .32, 8), metal); lampStem.position.set(.58, 1.0, .02); lampStem.rotation.z = -.2; lamp.add(lampStem); const lampShade = new THREE.Mesh(new THREE.ConeGeometry(.13, .16, 12, 1, true), new THREE.MeshStandardMaterial({ color: '#e6c879', emissive: '#6d5424', emissiveIntensity: .7, side: THREE.DoubleSide })); lampShade.position.set(.62, 1.16, .02); lamp.add(lampShade); desk.add(lamp);
-  desk.add(makeChair(0, .82)); return desk;
+  desk.add(makeChair(0, .82, style)); return desk;
 }
 
-function makeChair(x, z) {
-  const chair = new THREE.Group(); chair.position.set(x, 0, z); const fabric = new THREE.MeshStandardMaterial({ color: '#354d55', roughness: .82 }); const metal = new THREE.MeshStandardMaterial({ color: '#1b282e', roughness: .38 });
+function makeChair(x, z, style = 0) {
+  const chair = new THREE.Group(); chair.position.set(x, 0, z); const fabric = new THREE.MeshStandardMaterial({ color: ['#354d55', '#496f69', '#71566b'][style], roughness: .82 }); const metal = new THREE.MeshStandardMaterial({ color: '#1b282e', roughness: .38 });
   const back = new THREE.Mesh(new THREE.BoxGeometry(.48, .62, .1), fabric); back.position.set(0, .62, .12); back.castShadow = true; chair.add(back);
   const seat = new THREE.Mesh(new THREE.BoxGeometry(.52, .12, .48), fabric); seat.position.y = .32; seat.castShadow = true; chair.add(seat);
   const post = new THREE.Mesh(new THREE.CylinderGeometry(.035, .05, .28, 8), metal); post.position.y = .16; chair.add(post);
@@ -128,6 +131,23 @@ function makePlant(x, z) {
   const plant = new THREE.Group(); plant.position.set(x, 0, z); const pot = new THREE.Mesh(new THREE.CylinderGeometry(.19, .15, .25, 12), new THREE.MeshStandardMaterial({ color: '#c27757', roughness: .7 })); pot.position.y = .22; pot.castShadow = true; plant.add(pot);
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .55, 6), new THREE.MeshStandardMaterial({ color: '#47775c', roughness: .8 })); stem.position.y = .55; plant.add(stem);
   const leafMaterial = new THREE.MeshStandardMaterial({ color: '#63a978', roughness: .72 }); [-.13, .13, 0].forEach((leafX, index) => { const leaf = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 6), leafMaterial); leaf.scale.set(.65, 1.35, .35); leaf.position.set(leafX, .72 + index * .04, index === 1 ? .06 : -.03); leaf.rotation.z = leafX * 2; plant.add(leaf); }); return plant;
+}
+
+function makeEntranceAndParking(entranceX) {
+  const group = new THREE.Group(); const glass = new THREE.MeshStandardMaterial({ color: '#78b9bd', transparent: true, opacity: .48, roughness: .2 }); const frame = new THREE.MeshStandardMaterial({ color: '#355b59', roughness: .35 });
+  const door = new THREE.Mesh(new THREE.BoxGeometry(.9, 2.25, .08), glass); door.position.set(entranceX, 1.12, -1.58); group.add(door);
+  [-.5, .5].forEach(offset => { const post = new THREE.Mesh(new THREE.BoxGeometry(.08, 2.45, .1), frame); post.position.set(entranceX + offset, 1.22, -1.58); group.add(post); });
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.9, .12, .7), frame); canopy.position.set(entranceX, 2.35, -1.42); group.add(canopy);
+  const parking = new THREE.Mesh(new THREE.BoxGeometry(4.2, .035, 2.7), new THREE.MeshStandardMaterial({ color: '#aebfbd', roughness: .9 })); parking.position.set(entranceX - 2.8, .02, 3.3); group.add(parking);
+  for (let index = 0; index < 3; index += 1) { const line = new THREE.Mesh(new THREE.BoxGeometry(.05, .012, 2.2), new THREE.MeshBasicMaterial({ color: '#f4e7ad' })); line.position.set(entranceX - 4.1 + index * 1.3, .05, 3.3); group.add(line); }
+  const sign = makeLabel('MAIN ENTRANCE', '#355b59'); sign.position.set(entranceX, 2.7, -1.5); sign.scale.setScalar(.48); group.add(sign); return group;
+}
+
+function makeCar(color) {
+  const car = new THREE.Group(); const bodyMaterial = new THREE.MeshStandardMaterial({ color, roughness: .42 }); const dark = new THREE.MeshStandardMaterial({ color: '#25373b', roughness: .28 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(.95, .28, 1.55), bodyMaterial); body.position.y = .3; body.castShadow = true; car.add(body);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(.72, .28, .72), new THREE.MeshStandardMaterial({ color: '#78a8aa', transparent: true, opacity: .82, roughness: .2 })); cabin.position.set(0, .56, -.05); cabin.castShadow = true; car.add(cabin);
+  [-.38, .38].forEach(x => { [-.5, .5].forEach(z => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .08, 12), dark); wheel.rotation.z = Math.PI / 2; wheel.position.set(x, .16, z); car.add(wheel); }); }); return car;
 }
 
 function makeNeighborBuildings(width, depth) {
@@ -173,21 +193,29 @@ function makePerson(employee, x, z) {
   animatedPeople.push(group); return group;
 }
 
-function renderScene() {
+function renderScene(arrivingId = null) {
   if (!officeGroup) return;
   officeGroup.clear();
   animatedPeople = [];
+  arrivals = [];
   const spaces = employees.length;
+  const totalWidth = spaces * 5.35; const entranceX = -totalWidth / 2 - 1.05;
   employees.forEach((employee, index) => {
-    const x = index * 5.35 - ((spaces - 1) * 5.35) / 2; const z = 0; const space = makeRoom(x, z, employee.name, employee.active); officeGroup.add(space);
-    if (employee.active) space.add(makePerson(employee, 0, -0.25));
+    const x = index * 5.35 - ((spaces - 1) * 5.35) / 2; const z = 0; const space = makeRoom(x, z, employee); officeGroup.add(space);
+    if (employee.active && employee.id !== arrivingId) space.add(makePerson(employee, 0, -0.25));
+    if (employee.id === arrivingId) {
+      const person = makePerson(employee, entranceX, 1.6); person.userData.arriving = true; person.visible = false; officeGroup.add(person);
+      const car = makeCar(employee.color); car.position.set(entranceX - 2.8, 0, 3.5); officeGroup.add(car);
+      arrivals.push({ car, person, startX: entranceX, targetX: x, elapsed: 0, phase: 'drive' });
+    }
   });
-  const totalWidth = spaces * 5.35; const totalDepth = 4.15; const base = new THREE.Mesh(new THREE.BoxGeometry(totalWidth, 0.08, totalDepth), new THREE.MeshStandardMaterial({ color: '#b7cbc7', roughness: 1 })); base.position.set(0, -0.05, 0); base.receiveShadow = true; officeGroup.add(base);
+  officeGroup.add(makeEntranceAndParking(entranceX));
+  const totalDepth = 6.7; const base = new THREE.Mesh(new THREE.BoxGeometry(totalWidth + 2.4, 0.08, totalDepth), new THREE.MeshStandardMaterial({ color: '#b7cbc7', roughness: 1 })); base.position.set(-.6, -0.05, 1.15); base.receiveShadow = true; officeGroup.add(base);
   const corridor = new THREE.Mesh(new THREE.BoxGeometry(totalWidth - .4, .035, .9), new THREE.MeshStandardMaterial({ color: '#e3cda9', roughness: .88 })); corridor.position.set(0, .015, 1.6); corridor.receiveShadow = true; officeGroup.add(corridor);
   const hallRunner = new THREE.Mesh(new THREE.BoxGeometry(totalWidth - .7, .012, .24), new THREE.MeshStandardMaterial({ color: '#86b8aa', roughness: .92 })); hallRunner.position.set(0, .04, 1.6); officeGroup.add(hallRunner);
 }
 
-function animate(time = 0) { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; animatedPeople.forEach(person => { const wave = Math.sin(time * .0022 + person.userData.phase); person.position.y = .18 + wave * .025; person.rotation.z = wave * .012; person.children.filter(child => child.name === 'arm').forEach((arm, index) => { arm.rotation.x = wave * (index ? -.16 : .16); }); const glow = person.children.find(child => child.geometry?.type === 'RingGeometry'); if (glow) glow.material.opacity = .26 + (wave + 1) * .08; }); renderer.render(scene, camera); }
+function animate(time = 0) { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; animatedPeople.forEach(person => { const wave = Math.sin(time * .0022 + person.userData.phase); if (!person.userData.arriving) { person.position.y = .18 + wave * .025; person.rotation.z = wave * .012; } person.children.filter(child => child.name === 'arm').forEach((arm, index) => { arm.rotation.x = wave * (index ? -.16 : .16); }); const glow = person.children.find(child => child.geometry?.type === 'RingGeometry'); if (glow) glow.material.opacity = .26 + (wave + 1) * .08; }); arrivals.forEach(arrival => { arrival.elapsed += .016; if (arrival.phase === 'drive') { const progress = Math.min(arrival.elapsed / 1.2, 1); arrival.car.position.z = 3.5 - progress * 1.9; if (progress === 1) { arrival.phase = 'walk'; arrival.elapsed = 0; arrival.car.visible = false; arrival.person.visible = true; } } else if (arrival.phase === 'walk') { const progress = Math.min(arrival.elapsed / 2.6, 1); arrival.person.position.x = THREE.MathUtils.lerp(arrival.startX, arrival.targetX, progress); arrival.person.position.z = THREE.MathUtils.lerp(1.6, -.25, progress); if (progress === 1) { arrival.phase = 'done'; arrival.person.userData.arriving = false; } } }); renderer.render(scene, camera); }
 
 function updateClock() { document.querySelector('#clock').textContent = new Date().toLocaleTimeString([], { hour12: false }); }
 initScene(); renderEmployees(); updateClock(); setInterval(updateClock, 1000);
