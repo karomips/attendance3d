@@ -66,9 +66,9 @@ let scene, camera, renderer, officeGroup, animatedPeople = [], orbit = { x: 0.62
 function initScene() {
   const mount = document.querySelector('#scene');
   scene = new THREE.Scene();
-  scene.background = new THREE.Color('#101820');
+  scene.background = new THREE.Color('#e9f3f0');
   camera = new THREE.PerspectiveCamera(34, mount.clientWidth / mount.clientHeight, 0.1, 100);
-  camera.position.set(8.3, 8.4, 10.4);
+  camera.position.set(14, 13.5, 17);
   camera.lookAt(0, 0, 0);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -76,8 +76,8 @@ function initScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   mount.appendChild(renderer.domElement);
-  scene.add(new THREE.HemisphereLight('#dcecff', '#18232b', 2.2));
-  const sun = new THREE.DirectionalLight('#fff5dc', 4);
+  scene.add(new THREE.HemisphereLight('#ffffff', '#b8cec7', 2.25));
+  const sun = new THREE.DirectionalLight('#fff8e8', 3.6);
   sun.position.set(-4, 12, 6); sun.castShadow = true; scene.add(sun);
   officeGroup = new THREE.Group(); scene.add(officeGroup);
   mount.addEventListener('pointerdown', event => { orbit.down = true; orbit.px = event.clientX; orbit.py = event.clientY; });
@@ -90,17 +90,17 @@ function initScene() {
 
 function makeRoom(x, z, label, occupied) {
   const group = new THREE.Group(); group.position.set(x, 0, z);
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.18, 3.4), new THREE.MeshStandardMaterial({ color: occupied ? '#263c45' : '#202d35', roughness: 0.84 }));
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.18, 3.4), new THREE.MeshStandardMaterial({ color: occupied ? '#c8ddd6' : '#d9e7e2', roughness: 0.84 }));
   floor.position.y = 0.09; floor.receiveShadow = true; group.add(floor);
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: '#53646b', roughness: 0.8 });
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.75 });
   const back = new THREE.Mesh(new THREE.BoxGeometry(4.9, 2.15, 0.16), wallMaterial); back.position.set(0, 1.1, -1.62); group.add(back);
   const side = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.15, 3.4), wallMaterial); side.position.set(-2.37, 1.1, 0); group.add(side);
-  [-1.2, 1.2].forEach(xPos => group.add(makeDesk(xPos, 0.15, xPos < 0 ? '#a96c4a' : '#9b6649')));
+  group.add(makeDesk(0, 0.15, occupied ? '#b87951' : '#c7936d'));
   group.add(makePlant(1.9, -1.2));
   const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.82, 0.04), new THREE.MeshStandardMaterial({ color: '#293f48', roughness: .4 })); windowFrame.position.set(1.35, 1.28, -1.53); group.add(windowFrame);
   const windowLight = new THREE.Mesh(new THREE.BoxGeometry(1.12, .59, .045), new THREE.MeshStandardMaterial({ color: '#83bfc3', emissive: '#23464b', emissiveIntensity: .65, roughness: .25 })); windowLight.position.set(1.35, 1.28, -1.5); group.add(windowLight);
-  const art = new THREE.Mesh(new THREE.BoxGeometry(.55, .72, .035), new THREE.MeshStandardMaterial({ color: occupied ? '#d58e62' : '#56777a', roughness: .65 })); art.position.set(-1.3, 1.25, -1.53); group.add(art);
-  const roomText = makeLabel(label, occupied ? '#b7f4d7' : '#89989d'); roomText.position.set(-2.12, 2.05, -1.5); roomText.scale.setScalar(0.55); group.add(roomText);
+  const art = new THREE.Mesh(new THREE.BoxGeometry(.55, .72, .035), new THREE.MeshStandardMaterial({ color: occupied ? '#f1b37f' : '#b7d8d2', roughness: .65 })); art.position.set(-1.3, 1.25, -1.53); group.add(art);
+  const roomText = makeLabel(label, occupied ? '#347b64' : '#75918d'); roomText.position.set(-2.12, 2.05, -1.5); roomText.scale.setScalar(0.55); group.add(roomText);
   return group;
 }
 
@@ -128,6 +128,19 @@ function makePlant(x, z) {
   const plant = new THREE.Group(); plant.position.set(x, 0, z); const pot = new THREE.Mesh(new THREE.CylinderGeometry(.19, .15, .25, 12), new THREE.MeshStandardMaterial({ color: '#c27757', roughness: .7 })); pot.position.y = .22; pot.castShadow = true; plant.add(pot);
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .55, 6), new THREE.MeshStandardMaterial({ color: '#47775c', roughness: .8 })); stem.position.y = .55; plant.add(stem);
   const leafMaterial = new THREE.MeshStandardMaterial({ color: '#63a978', roughness: .72 }); [-.13, .13, 0].forEach((leafX, index) => { const leaf = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 6), leafMaterial); leaf.scale.set(.65, 1.35, .35); leaf.position.set(leafX, .72 + index * .04, index === 1 ? .06 : -.03); leaf.rotation.z = leafX * 2; plant.add(leaf); }); return plant;
+}
+
+function makeNeighborBuildings(width, depth) {
+  const skyline = new THREE.Group();
+  const buildingColors = ['#c4d8d5', '#b8cdcb', '#d3e1df', '#afc7c5'];
+  const positions = [-width / 2 + 1.3, -width / 2 + 4.7, 0, width / 2 - 4.7, width / 2 - 1.3];
+  positions.forEach((x, index) => {
+    const height = 2.7 + (index % 3) * .7; const building = new THREE.Group(); building.position.set(x, height / 2 - .08, -depth / 2 - 3.2);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.45, height, 1.7), new THREE.MeshStandardMaterial({ color: buildingColors[index % buildingColors.length], roughness: .9 })); body.castShadow = true; building.add(body);
+    for (let row = 0; row < 3; row += 1) for (let column = 0; column < 3; column += 1) { const window = new THREE.Mesh(new THREE.BoxGeometry(.28, .25, .025), new THREE.MeshStandardMaterial({ color: '#f7df9a', emissive: '#a78943', emissiveIntensity: .25, roughness: .35 })); window.position.set((column - 1) * .58, -height / 2 + .65 + row * .62, .87); building.add(window); }
+    skyline.add(building);
+  });
+  return skyline;
 }
 
 function makeLabel(text, color) {
@@ -164,13 +177,14 @@ function renderScene() {
   if (!officeGroup) return;
   officeGroup.clear();
   animatedPeople = [];
-  const rooms = [...new Set(employees.map(employee => employee.room))];
-  rooms.forEach((roomName, index) => {
-    const x = (index % 2) * 5.35 - 2.7; const z = Math.floor(index / 2) * 4.15 - 2.1; const roomEmployees = employees.filter(employee => employee.room === roomName); const room = makeRoom(x, z, roomName, roomEmployees.some(employee => employee.active)); officeGroup.add(room);
-    roomEmployees.filter(employee => employee.active).forEach((employee, personIndex) => { const px = personIndex % 2 ? 1.05 : -1.05; const pz = personIndex > 1 ? 0.8 : -0.25; room.add(makePerson(employee, px, pz)); });
+  const columns = 3; const spaces = employees.length;
+  employees.forEach((employee, index) => {
+    const x = (index % columns) * 5.35 - 5.35; const z = Math.floor(index / columns) * 4.15 - 2.1; const space = makeRoom(x, z, employee.name, employee.active); officeGroup.add(space);
+    if (employee.active) space.add(makePerson(employee, 0, -0.25));
   });
-  const totalWidth = rooms.length > 1 ? 10.8 : 5.4; const totalDepth = Math.ceil(rooms.length / 2) * 4.15; const base = new THREE.Mesh(new THREE.BoxGeometry(totalWidth, 0.08, totalDepth), new THREE.MeshStandardMaterial({ color: '#17252a', roughness: 1 })); base.position.set(0, -0.05, 0); base.receiveShadow = true; officeGroup.add(base);
-  const grid = new THREE.GridHelper(Math.max(totalWidth, totalDepth), 12, '#3c5457', '#24383d'); grid.position.y = 0.01; officeGroup.add(grid);
+  const totalWidth = columns * 5.35; const totalDepth = Math.ceil(spaces / columns) * 4.15; const base = new THREE.Mesh(new THREE.BoxGeometry(totalWidth, 0.08, totalDepth), new THREE.MeshStandardMaterial({ color: '#b7cbc7', roughness: 1 })); base.position.set(0, -0.05, 0); base.receiveShadow = true; officeGroup.add(base);
+  const grid = new THREE.GridHelper(Math.max(totalWidth, totalDepth), 18, '#a8c2be', '#d6e4e0'); grid.position.y = 0.01; officeGroup.add(grid);
+  officeGroup.add(makeNeighborBuildings(totalWidth, totalDepth));
 }
 
 function animate(time = 0) { requestAnimationFrame(animate); officeGroup.rotation.y += (orbit.x - officeGroup.rotation.y) * 0.06; animatedPeople.forEach(person => { const wave = Math.sin(time * .0022 + person.userData.phase); person.position.y = .18 + wave * .025; person.rotation.z = wave * .012; person.children.filter(child => child.name === 'arm').forEach((arm, index) => { arm.rotation.x = wave * (index ? -.16 : .16); }); const glow = person.children.find(child => child.geometry?.type === 'RingGeometry'); if (glow) glow.material.opacity = .26 + (wave + 1) * .08; }); renderer.render(scene, camera); }
